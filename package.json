@@ -1,0 +1,12 @@
+{
+  "name": "docker-watcher",
+  "version": "0.0.1",
+  "description": "Watch Docker for container start/stop",
+  "license": "MIT",
+  "author": "Connor Hewitt",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
