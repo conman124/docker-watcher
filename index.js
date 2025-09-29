@@ -143,7 +143,7 @@ class DockerWatcher extends EventEmitter {
             // 1. If there are no containers when we initially fetch the list and then they are created
             //    before we start streaming events. (lastKnownEventTimestamp will be 0)
             // 2. If the streaming request dies, then an event is emitted in the same ms as the last
-            //    event we saw. (since includes the ms passed, so to not get some duplictates, we bump
+            //    event we saw. (since includes the ms passed, so to not get some duplicates, we bump
             //    it by 1)
             //
             // Another unexpected issue is if docker goes down with containers running, when you restart
@@ -210,7 +210,7 @@ class DockerWatcher extends EventEmitter {
             const parsed = JSON.parse(event);
 
             if(parsed.status === "start") {
-                newContainers.push(parsed.Actor);
+                newContainers.push({id: parsed.id, labels: parsed.Actor.Attributes});
             } else if (parsed.status === "die") {
                 removeIds.push(parsed.id);
             } else {
@@ -224,7 +224,7 @@ class DockerWatcher extends EventEmitter {
 
     #updateContainers(newContainers, removeContainerIds) {
         newContainers.forEach(container => {
-            this.#currentContainers["ID" in container ? container.ID : container.Id] = container;
+            this.#currentContainers[container.id] = container;
         });
 
         removeContainerIds.forEach(id => {
@@ -253,7 +253,10 @@ class DockerWatcher extends EventEmitter {
         } else {
             this.#lastKnownEventTimestamp = 0;
         }
-        this.#insertContainers(currentContainers);
+        this.#insertContainers(currentContainers.map(c => ({
+            id: c.Id,
+            labels: c.Labels,
+        })));
         this.#watchContainers();
     }
 }
