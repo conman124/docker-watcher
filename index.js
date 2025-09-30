@@ -145,15 +145,9 @@ class DockerWatcher extends EventEmitter {
             // 2. If the streaming request dies, then an event is emitted in the same ms as the last
             //    event we saw. (since includes the ms passed, so to not get some duplicates, we bump
             //    it by 1)
-            //
-            // Another unexpected issue is if docker goes down with containers running, when you restart
-            // those containers, their "Created" timestamp seems to still be the old one, instead of the
-            // new one.  So you can get some double events when starting up.  I am not terribly worried
-            // about this, but one solution could be to not emit our first containersChanged event until
-            // we've fetched the initial list, and streamed all the "backlogged" events.
             const since = this.#lastKnownEventTimestamp ? "&since="+(this.#lastKnownEventTimestamp+1) : "";
 
-            // Used to close the event stream if the server stops responding to pings.
+            // This is used to close the event stream if the server stops responding to pings.
             let eventStreamResponse;
             const pinger = new DockerPinger();
             pinger.on("closed", () => {
@@ -238,8 +232,15 @@ class DockerWatcher extends EventEmitter {
         this.#updateContainers(containers, []);
     }
 
+    #debounceTimer = undefined;
+
     #emitChanged() {
-        this.emit("containersChanged", this.#cloneContainers());
+        if(this.#debounceTimer) {
+            clearTimeout(this.#debounceTimer);
+        }
+        this.#debounceTimer = setTimeout(() => {
+            this.emit("containersChanged", this.#cloneContainers());
+        }, 250);
     }
 
     #cloneContainers() {
