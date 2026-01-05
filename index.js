@@ -9,9 +9,9 @@ function makeRequest(path, cb) {
         opts.socketPath = sock;
     } else if (host.startsWith("tcp://")) {
         const hostAndPort = host.replace("tcp://", "");
-        let [host,port] = hostAndPort.split(":");
+        let [hostname,port] = hostAndPort.split(":");
         if(!port) { port = 2375; }
-        opts.hostname = host;
+        opts.hostname = hostname;
         opts.port = port;
     } else {
         throw new Error("I don't know how to handle that DOCKER_HOST: " + host);
