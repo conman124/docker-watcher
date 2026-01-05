@@ -1,6 +1,25 @@
 const http = require("node:http");
 const EventEmitter = require("node:events");
 
+function makeRequest(path, cb) {
+    const host = process.env["DOCKER_HOST"] || "unix:///var/run/docker.sock";
+    const opts = {path};
+    if(host.startsWith("unix://")) {
+        const sock = host.replace("unix://", "");
+        opts.socketPath = sock;
+    } else if (host.startsWith("tcp://")) {
+        const hostAndPort = host.replace("tcp://", "");
+        let [host,port] = hostAndPort.split(":");
+        if(!port) { port = 2375; }
+        opts.hostname = host;
+        opts.port = port;
+    } else {
+        throw new Error("I don't know how to handle that DOCKER_HOST: " + host);
+    }
+
+    return http.request(opts, cb);
+}
+
 function isResponseSuccessful(res) {
     return res.statusCode >= 200 && res.statusCode < 299;
 }
@@ -28,10 +47,7 @@ class DockerPinger extends EventEmitter {
     #ping() {
         if(this.#stopped) { return; }
 
-        const req = http.request({
-            socketPath: "/var/run/docker.sock",
-            path: `/v1.39/_ping`,
-        }, res => {
+        const req = makeRequest(`/v1.39/_ping`, res => {
             let successful = isResponseSuccessful(res);
 
             if(!successful) {
@@ -92,10 +108,7 @@ class DockerWatcher extends EventEmitter {
         const filterStr = encodeURIComponent(JSON.stringify(filters));
 
         function tryRequest(i, resolve, reject) {
-            const req = http.request({
-                socketPath: "/var/run/docker.sock",
-                path: `/v1.39/containers/json?filters=${filterStr}`,
-            }, res => {
+            const req = makeRequest(`/v1.39/containers/json?filters=${filterStr}`, res => {
                 let data = "";
                 let successful = isResponseSuccessful(res);
     
@@ -159,10 +172,7 @@ class DockerWatcher extends EventEmitter {
                 }
             });
 
-            const req = http.request({
-                socketPath: "/var/run/docker.sock",
-                path: `/v1.39/events?filters=${filterStr}${since}`,
-            }, res => {
+            const req = makeRequest(`/v1.39/events?filters=${filterStr}${since}`, res => {
                 eventStreamResponse = res;
 
                 let data = "";
