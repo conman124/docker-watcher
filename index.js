@@ -108,14 +108,18 @@ class DockerWatcher extends EventEmitter {
         const filterStr = encodeURIComponent(JSON.stringify(filters));
 
         function tryRequest(i, resolve, reject) {
+            console.log("docker-watcher: Getting current containers")
             const req = makeRequest(`/v1.39/containers/json?filters=${filterStr}`, res => {
+                console.log("docker-watcher: Getting current containers - request")
                 let data = "";
                 let successful = isResponseSuccessful(res);
     
                 res.on("data", (chunk) => {
+                    console.log("docker-watcher: Getting current containers - data")
                     data += chunk;
                 });
                 res.on("end", () => {
+                    console.log("docker-watcher: Getting current containers - end")
                     if(successful) {
                         try {
                             resolve(JSON.parse(data));
@@ -128,7 +132,7 @@ class DockerWatcher extends EventEmitter {
                 });
             });
     
-            req.on("error", (e) => {retryOrRejectRequest(e, tryRequest, i, resolve, reject)});
+            req.on("error", (e) => {console.log("docker-watcher: Getting current containers - error"); retryOrRejectRequest(e, tryRequest, i, resolve, reject)});
             req.end();
         }
     
@@ -150,6 +154,7 @@ class DockerWatcher extends EventEmitter {
         const filterStr = encodeURIComponent(JSON.stringify(filters));
 
         const tryRequest = (i, neverResolve, reject) => {
+            console.log("docker-watcher: Watching containers")
             // Technically there are two race conditions here, both seem equally unlikely and
             // difficult to resolve:
             //
@@ -164,6 +169,7 @@ class DockerWatcher extends EventEmitter {
             let eventStreamResponse;
             const pinger = new DockerPinger();
             pinger.on("closed", () => {
+                console.log("docker-watcher: Watching containers - pinger closed")
                 if(eventStreamResponse) {
                     // There is a current event streaming response, but Docker has stopped or crashed (is
                     // not responding to ping API), so manually end the event stream response and let the
@@ -173,18 +179,21 @@ class DockerWatcher extends EventEmitter {
             });
 
             const req = makeRequest(`/v1.39/events?filters=${filterStr}${since}`, res => {
+                console.log("docker-watcher: Watching containers - request")
                 eventStreamResponse = res;
 
                 let data = "";
                 let successful = isResponseSuccessful(res);
 
                 res.on("data", (chunk) => {
+                    console.log("docker-watcher: Watching containers - data")
                     data += chunk;
                     if(successful) {
                         data = this.#handleEvents(data);
                     }
                 });
                 res.on("end", () => {
+                    console.log("docker-watcher: Watching containers - end")
                     if(successful) {
                         // Not sure why this got closed, but since it was not an error per se, retry starting at retry 0
                         retryOrRejectRequest("", tryRequest, 0, neverResolve, reject);
@@ -194,7 +203,7 @@ class DockerWatcher extends EventEmitter {
                 });
             });
 
-            req.on("error", (e) => retryOrRejectRequest(e, tryRequest, i, neverResolve, reject));
+            req.on("error", (e) => {console.log("docker-watcher: Watching containers - error"); retryOrRejectRequest(e, tryRequest, i, neverResolve, reject)});
             req.end();
         }
 
